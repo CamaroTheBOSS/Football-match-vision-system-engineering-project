@@ -129,6 +129,8 @@ def displayPoints(points, dst):
 
 
 def main():
+    WAIT_KEY_TIME = Config.get_FPS()
+
     football_manager = FootballManager()
     drawer = Drawer(football_manager.footballers)
 
@@ -188,7 +190,7 @@ def main():
         # cv2.imshow("frame with footballers", frame_with_footballers)
         # cv2.imshow("edges", canny)
         # cv2.imshow("final lines", empty2)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        if cv2.waitKey(WAIT_KEY_TIME) & 0xFF == ord('q'):
             break
         if keyboard.is_pressed("d"):
             frame_distributor.cap_forward()

@@ -25,6 +25,16 @@ def plain_distance_comparator(center_first: tuple, candidate: Candidate):
     return candidate.calculate_min_distance(lambda: plain_distance(center_first, candidate.center))
 
 
+def _plain_distance_footballers_sort(footballers_list: list[Footballer], candidate: Candidate):
+    candidate.distance = None
+    footballers_list.sort(key=lambda f: plain_distance_comparator(f.center, candidate), reverse=False)
+
+
+def _color_distance_teams_sort(teams_list: list[Team], candidate: Candidate):
+    candidate.distance = None
+    teams_list.sort(key=lambda team: color_comparator(team.color, candidate), reverse=False)
+
+
 class FootballManager:
     def __init__(self, max_teams: int = 2, max_footballers: int = 25):
         self.MAX_TEAMS = max_teams
@@ -39,20 +49,8 @@ class FootballManager:
 
         self.ball = None
 
-    def _plain_distance_footballers_sort(self, candidate: Candidate):
-        candidate.distance = None
-        self.footballers.sort(key=lambda f: plain_distance_comparator(f.center, candidate), reverse=False)
-
-    def _plain_distance_deleted_footballers_sort(self, candidate: Candidate):
-        candidate.distance = None
-        self.deleted_footballers.sort(key=lambda f: plain_distance_comparator(f.center, candidate), reverse=False)
-
-    def _color_distance_teams_sort(self, candidate: Candidate):
-        candidate.distance = None
-        self.teams.sort(key=lambda team: color_comparator(team.color, candidate), reverse=False)
-
     def _assign_to_existing_team(self, footballer: Footballer, candidate: Candidate):
-        self._color_distance_teams_sort(candidate)
+        _color_distance_teams_sort(self.teams, candidate)
         if self.teams[0] != footballer.team:
             footballer.reassign(self.teams[0])
 
@@ -96,7 +94,7 @@ class FootballManager:
         print(f"{Colors.WARNING}Footballer with ID {Colors.FAIL}{footballer.id}{Colors.WARNING} has been deleted{Colors.ENDC}")
 
     def _determine_team(self, candidate: Candidate):
-        self._color_distance_teams_sort(candidate)
+        _color_distance_teams_sort(self.teams, candidate)
 
         if len(self.teams) >= self.MAX_TEAMS:
             return self.teams[0]
@@ -110,10 +108,10 @@ class FootballManager:
             return self._add_new_team(candidate.color)
 
     def _determine_footballer(self, candidate: Candidate):
-        self._plain_distance_footballers_sort(candidate)
+        _plain_distance_footballers_sort(self.footballers, candidate)
         if len(self.footballers) >= self.MAX_FOOTBALLERS:
             self.footballers[0].track(candidate.center, candidate.box)
-            # self._assign_to_existing_team(self.footballers[0], candidate)
+            self._assign_to_existing_team(self.footballers[0], candidate)
             return None
 
         if len(self.footballers) == 0:
@@ -121,7 +119,7 @@ class FootballManager:
 
         if candidate.distance <= 80:
             self.footballers[0].track(candidate.center, candidate.box)
-            # self._assign_to_existing_team(self.footballers[0], candidate)
+            self._assign_to_existing_team(self.footballers[0], candidate)
             return None
         else:
             return self._add_new_footballer(candidate)
