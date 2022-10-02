@@ -1,6 +1,8 @@
 import cv2
 import numpy as np
 
+from functools import wraps
+
 
 class Drawer:
     def __init__(self, footballers):

@@ -1,93 +1,145 @@
-import cv2
 import numpy as np
 
 from Colors import Colors
-from Objects import Footballer, Team
+from Objects import Footballer, Team, Candidate
+from Config import Config
 
 
-def get_box_and_center(contour):
-    m = cv2.moments(contour)
-    box = cv2.boundingRect(contour)
-    center = (int(m['m10'] / m['m00']), int(m['m01'] / m['m00'])) if m['m00'] != 0.0 else \
-        tuple(coord // 2 for coord in box[0:2])
+def color_distance(color_first: tuple, color_second: tuple):
+    dR = (color_first[0] - color_second[0])**2
+    dG = (color_first[1] - color_second[1])**2
+    dB = (color_first[2] - color_second[2])**2
+    r = 0.5*(color_first[0] + color_second[0])
+    return np.sqrt((2 + r/256)*dR + 4*dG + (2 + (255 - r)/256)*dB)
 
-    return center, box
+
+def color_comparator(color: tuple, candidate: Candidate):
+    return candidate.calculate_min_distance(lambda: color_distance(color, candidate.color))
 
 
-def find_average_color(frame: np.ndarray, box: list[int]):
-    x, y, w, h = box[0] + box[2] // 3, box[1] + box[3] // 10, box[2] // 3, 3 * box[3] // 10
-    x_vec = np.linspace(x, x + w - 1, 10, dtype=int)
-    y_vec = np.linspace(y, y + h - 1, 10, dtype=int)
-    colors_list = [frame[y, x] for x in x_vec for y in y_vec]
-    average_color = (0, 0, 0)
-    divider = 0
-    for color in colors_list:
-        if not np.logical_and(color[0] > color[1], color[1] > color[2]):
-            average_color = tuple(map(sum, zip(average_color, color)))
-            divider += 1
-    if not divider:
-        divider = 1
-    average_color = tuple(int(color) // divider for color in average_color)
+def plain_distance(center_first: tuple, center_second: tuple):
+    return abs(center_first[0] - center_second[0]) + abs(center_first[1] - center_second[1])
 
-    return average_color
+
+def plain_distance_comparator(center_first: tuple, candidate: Candidate):
+    return candidate.calculate_min_distance(lambda: plain_distance(center_first, candidate.center))
 
 
 class FootballManager:
-    def __init__(self):
+    def __init__(self, max_teams: int = 2, max_footballers: int = 25):
+        self.MAX_TEAMS = max_teams
+        self.MAX_FOOTBALLERS = max_footballers
+
         self.footballers = []
+        self.deleted_footballers = []
+        self.initial_indexes = list(range(max_footballers))
+
         self.teams = []
+        self.team_colors = Config.TEAM_COLORS.copy()
+
         self.ball = None
-        self.footballer_idx = 0
 
-    def _add_footballer_to_existing_team(self, center: tuple, box: list[int], color: tuple, team: Team):
-        print(f"{Colors.OKCYAN} Footballer added to team with id: {team.id}{Colors.ENDC}")
-        self.footballers.append(Footballer(self.footballer_idx, center, box, color, team))
-        self.footballer_idx += 1
+    def _plain_distance_footballers_sort(self, candidate: Candidate):
+        candidate.distance = None
+        self.footballers.sort(key=lambda f: plain_distance_comparator(f.center, candidate), reverse=False)
 
-    def _add_footballer_and_team(self, center: tuple, box: list[int], color: tuple):
-        print(f"{Colors.OKGREEN} Footballer and team added {Colors.ENDC}")
-        self.teams.append(Team(color, len(self.teams)))
-        self.footballers.append(Footballer(self.footballer_idx, center, box, color, self.teams[-1]))
-        self.footballer_idx += 1
+    def _plain_distance_deleted_footballers_sort(self, candidate: Candidate):
+        candidate.distance = None
+        self.deleted_footballers.sort(key=lambda f: plain_distance_comparator(f.center, candidate), reverse=False)
 
-    def track_footballers(self, center, box, average_color):
-        # 3.1 Looking for the nearest footballer
-        if len(self.footballers):
-            self.footballers.sort(key=lambda f: f.calc_distance(center), reverse=False)
-            for footballer in self.footballers:
-                # 3.1.1 Necessary condition
-                if footballer.distance > 1 ** 2:
-                    self.teams.sort(key=lambda t: t.calc_distance(average_color), reverse=False)
-                    if self.teams[0].distance < 1:
-                        self._add_footballer_to_existing_team(center, box, average_color, self.teams[0])
-                    else:
-                        self._add_footballer_and_team(center, box, average_color)
-                    return
+    def _color_distance_teams_sort(self, candidate: Candidate):
+        candidate.distance = None
+        self.teams.sort(key=lambda team: color_comparator(team.color, candidate), reverse=False)
 
-                # 3.1.2 Team condition
-                self.teams.sort(key=lambda t: t.calc_distance(average_color), reverse=False)
-                for team in self.teams:
-                    if team.id != footballer.team.id or team.distance > 1:
-                        self._add_footballer_and_team(center, box, average_color)
-                        return
+    def _assign_to_existing_team(self, footballer: Footballer, candidate: Candidate):
+        self._color_distance_teams_sort(candidate)
+        if self.teams[0] != footballer.team:
+            footballer.reassign(self.teams[0])
 
-                    # 3.1.3 TODO Size condition
+    def _add_new_team(self, color: tuple):
+        # if Config.use_display_colors:
+        #     team = Team(len(self.teams), color, self.team_colors[0])
+        #     del self.team_colors[0]
+        # else:
+        team = Team(len(self.teams), color)
 
-                    # 3.1.4 This is that footballer
-                    footballer.track(center, box)
-                    print(f"{Colors.OKBLUE} Footballer tracked (id: {footballer.id}) {Colors.ENDC}")
-                    return
+        self.teams.append(team)
+        print(f"{Colors.OKGREEN}New Team has been added with color: {Colors.OKBLUE}{color}{Colors.ENDC}")
+        return team
+
+    # def _add_footballer_from_deleted_list(self, candidate: Candidate):
+    #     footballer = Footballer(self.deleted_footballers[0].id, candidate.center, candidate.box, candidate.color)
+    #     self.deleted_footballers[0].team.assign(footballer)
+    #     self.footballers.append(footballer)
+    #     print(
+    #         f"{Colors.OKGREEN}Footballer from deleted_list has been added with id: "
+    #         f"{Colors.OKBLUE}{self.deleted_footballers[0].id}{Colors.ENDC}")
+    #     del self.deleted_footballers[0]
+
+    def _add_new_footballer(self, candidate: Candidate):
+        # if self.deleted_footballers:
+        #     self._plain_distance_deleted_footballers_sort(candidate)
+        #     self._add_footballer_from_deleted_list(candidate)
+        #     return None
+
+        footballer = Footballer(self.initial_indexes[0], candidate.center, candidate.box, candidate.color)
+        self.footballers.append(footballer)
+        del self.initial_indexes[0]
+        print(f"{Colors.OKGREEN}New Footballer has been added with id: {Colors.OKBLUE}{footballer.id}{Colors.ENDC}")
+        return footballer
+
+    def _remove_footballer(self, footballer: Footballer):
+        footballer.team.remove_footballer(footballer)
+        self.footballers.remove(footballer)
+        # self.deleted_footballers.append(footballer)
+        self.initial_indexes.append(footballer.id)
+        print(f"{Colors.WARNING}Footballer with ID {Colors.FAIL}{footballer.id}{Colors.WARNING} has been deleted{Colors.ENDC}")
+
+    def _determine_team(self, candidate: Candidate):
+        self._color_distance_teams_sort(candidate)
+
+        if len(self.teams) >= self.MAX_TEAMS:
+            return self.teams[0]
+
+        if len(self.teams) == 0:
+            return self._add_new_team(candidate.color)
+
+        if candidate.distance <= 80:
+            return self.teams[0]
         else:
-            self._add_footballer_and_team(center, box, average_color)
+            return self._add_new_team(candidate.color)
 
-    def fit_contours_to_objects(self, frame: np.ndarray, contours: list[np.ndarray]):
-        for contour in contours:
-            # 1. Finding center of mass and bounding box of the contour
-            center, box = get_box_and_center(contour)
+    def _determine_footballer(self, candidate: Candidate):
+        self._plain_distance_footballers_sort(candidate)
+        if len(self.footballers) >= self.MAX_FOOTBALLERS:
+            self.footballers[0].track(candidate.center, candidate.box)
+            # self._assign_to_existing_team(self.footballers[0], candidate)
+            return None
 
-            # 2. Finding average color
-            average_color = find_average_color(frame, box)
+        if len(self.footballers) == 0:
+            return self._add_new_footballer(candidate)
 
-            # 3. Fit object with specific center of mass and specific
-            # color to previously detected objects (or add it to detected objects)
-            self.track_footballers(center, box, average_color)
+        if candidate.distance <= 80:
+            self.footballers[0].track(candidate.center, candidate.box)
+            # self._assign_to_existing_team(self.footballers[0], candidate)
+            return None
+        else:
+            return self._add_new_footballer(candidate)
+
+    def process_candidates(self, candidates: list[Candidate]):
+        for candidate in candidates:
+            footballer = self._determine_footballer(candidate)
+            if footballer is not None:
+                team = self._determine_team(candidate)
+                team.assign(footballer)
+
+    def update(self):
+        for footballer in self.footballers:
+            footballer.update()
+
+            if footballer.not_tracked_frames_in_row >= 5:
+                self._remove_footballer(footballer)
+
+    def draw(self, frame: np.ndarray):
+        for footballer in self.footballers:
+            footballer.draw(frame)

@@ -12,10 +12,15 @@ class FrameDistributor:
         self.camera_tracker = camera_tracker
 
         self.cap = cv2.VideoCapture(path)
-        self.cap.set(cv2.CAP_PROP_POS_FRAMES, 3600)
 
         self.frame = None
         self.preprocessed_frame = None
+
+    def cap_forward(self):
+        self.cap.set(cv2.CAP_PROP_POS_FRAMES, self.cap.get(cv2.CAP_PROP_POS_FRAMES) + 180)
+
+    def cap_rewind(self):
+        self.cap.set(cv2.CAP_PROP_POS_FRAMES, self.cap.get(cv2.CAP_PROP_POS_FRAMES) - 180)
 
     def read(self):
         ret, self.frame = self.cap.read()
@@ -55,17 +60,19 @@ class FrameDistributor:
 
     def cut_background(self):
         self._cut_background()
-        return self.preprocessed_frame.copy()
+        return self.preprocessed_frame
 
     def cut_objects(self):
         self._cut_objects()
-        return self.preprocessed_frame.copy()
+        return self.preprocessed_frame
 
     def send_to_detectors(self):
         frame_with_pitch = cv2.bitwise_and(self.frame, self.frame, mask=self.preprocessed_frame)
         frame_with_footballers = cv2.bitwise_and(self.frame, self.frame, mask=np.invert(self.preprocessed_frame))
 
-        self.object_detector.frame = frame_with_footballers
+        self.object_detector.original_frame = self.frame
+        self.object_detector.workspace_frame = frame_with_footballers
+        self.object_detector.mask = self.preprocessed_frame
         self.camera_tracker.frame = frame_with_pitch
 
 

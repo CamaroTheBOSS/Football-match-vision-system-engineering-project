@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import keyboard
 
 from CameraTracker import CameraTracker
 from Drawer import Drawer
@@ -131,9 +132,9 @@ def main():
     football_manager = FootballManager()
     drawer = Drawer(football_manager.footballers)
 
-    detector = ObjectsDetector()
+    objects_detector = ObjectsDetector()
     camera_tracker = CameraTracker()
-    frame_distributor = FrameDistributor("../video/" + Config.get_video(), detector, camera_tracker)
+    frame_distributor = FrameDistributor("../video/" + Config.get_video(), objects_detector, camera_tracker)
 
     while True:
         # 1. Getting frame
@@ -141,9 +142,19 @@ def main():
             break
 
         # 2. Preprocess got frame and send it to detectors
-        frame_distributor.preprocess_frame()
+        frame_distributor.cut_background()
+        frame_distributor.cut_objects()
+        frame_distributor.send_to_detectors()
 
+        # 3. Detect footballers
+        objects_detector.look_for_objects()
+        candidates = objects_detector.prepare_candidates()
+        football_manager.process_candidates(candidates)
 
+        football_manager.update()
+        drawer.frame = frame_distributor.frame
+        football_manager.draw(drawer.frame)
+        drawer.draw_frame("")
         # mask, silhouettes = cut_footballers_silhouette(frame_with_footballers, mask)
         # frame_with_footballers = cv2.bitwise_and(frame, frame, mask=mask)
         # # football_manager.fit_contours_to_objects(frame, silhouettes)
@@ -173,16 +184,19 @@ def main():
         # displayPoints(intersectionPoints, frame)
 
         # X. Show windows
-        cv2.imshow("frame", frame_distributor.frame)
         # cv2.imshow("frame with pitch", frame_with_pitch)
         # cv2.imshow("frame with footballers", frame_with_footballers)
         # cv2.imshow("edges", canny)
         # cv2.imshow("final lines", empty2)
-
-        if cv2.waitKey(10) & 0xFF == ord('q'):
+        if cv2.waitKey(1) & 0xFF == ord('q'):
             break
+        if keyboard.is_pressed("d"):
+            frame_distributor.cap_forward()
+        if keyboard.is_pressed("a"):
+            frame_distributor.cap_rewind()
 
     frame_distributor.cap.release()
     cv2.destroyAllWindows()
+
 
 main()
