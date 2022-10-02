@@ -5,10 +5,13 @@ import numpy as np
 
 
 class Object:
-    def __init__(self, identifier: int, center: tuple, box: list[int], color: tuple):
+    def __init__(self, identifier: int, center: tuple, box: list[int], color: tuple, display_color: tuple = None):
         # Unchangeable
         self.id = identifier
         self.color = color
+        self.display_color = display_color
+        if display_color is None:
+            self.display_color = color
 
         # Changeable
         self.box = box
@@ -42,8 +45,8 @@ class Candidate(Object):
 
 
 class MovingObject(Object):
-    def __init__(self, identifier: int, center: tuple, box: list[int], color: tuple):
-        super().__init__(identifier, center, box, color)
+    def __init__(self, identifier: int, center: tuple, box: list[int], color: tuple, display_color: tuple = None):
+        super().__init__(identifier, center, box, color, display_color)
         self.plain_velocity = (0, 0)
         self.not_tracked_frames_in_row = 0
         self.tracked = False
@@ -73,10 +76,13 @@ class MovingObject(Object):
 
 
 class Team:
-    def __init__(self, identifier, color):
+    def __init__(self, identifier, color, display_color: tuple = None):
         self.footballers = []
         self.id = identifier
         self.color = color
+        self.display_color = display_color
+        if display_color is None:
+            self.display_color = color
 
         self.sum_of_colors = (0, 0, 0)
         self.n_footballers = 0
@@ -131,9 +137,11 @@ class Footballer(MovingObject):
 
     def draw(self, frame: np.ndarray):
         cv2.rectangle(frame, (self.box[0], self.box[1]),
-                      (self.box[0] + self.box[2], self.box[1] + self.box[3]), self.team.color, 3)
+                      (self.box[0] + self.box[2], self.box[1] + self.box[3]), self.team.display_color, 3)
         cv2.putText(frame, str(self.team.id), (self.center[0] + self.box[2] // 2, self.center[1] - self.box[3] // 2),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, self.team.color, 2, cv2.LINE_AA)
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, self.team.display_color, 2, cv2.LINE_AA)
+        cv2.putText(frame, str(self.id), (self.center[0] + self.box[2] // 2, self.center[1] + self.box[3] // 2),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, self.team.display_color, 2, cv2.LINE_AA)
 
 
 class Ball(MovingObject):

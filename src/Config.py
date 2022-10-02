@@ -13,7 +13,7 @@ class Config:
               }
     TEAM_COLORS = [(255, 255, 255), (0, 0, 0), (255, 0, 0), (0, 255, 0), (0, 0, 255)]
 
-    use_display_colors = False
+    use_display_colors = True
 
     @staticmethod
     def get_cutting_background_threshold():

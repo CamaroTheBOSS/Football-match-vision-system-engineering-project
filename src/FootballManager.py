@@ -55,31 +55,18 @@ class FootballManager:
             footballer.reassign(self.teams[0])
 
     def _add_new_team(self, color: tuple):
-        # if Config.use_display_colors:
-        #     team = Team(len(self.teams), color, self.team_colors[0])
-        #     del self.team_colors[0]
-        # else:
-        team = Team(len(self.teams), color)
+        if Config.use_display_colors:
+            team = Team(len(self.teams), color, self.team_colors[0])
+            del self.team_colors[0]
+        else:
+            team = Team(len(self.teams), color)
 
         self.teams.append(team)
         print(f"{Colors.OKGREEN}New Team has been added with color: {Colors.OKBLUE}{color}{Colors.ENDC}")
         return team
 
-    # def _add_footballer_from_deleted_list(self, candidate: Candidate):
-    #     footballer = Footballer(self.deleted_footballers[0].id, candidate.center, candidate.box, candidate.color)
-    #     self.deleted_footballers[0].team.assign(footballer)
-    #     self.footballers.append(footballer)
-    #     print(
-    #         f"{Colors.OKGREEN}Footballer from deleted_list has been added with id: "
-    #         f"{Colors.OKBLUE}{self.deleted_footballers[0].id}{Colors.ENDC}")
-    #     del self.deleted_footballers[0]
 
     def _add_new_footballer(self, candidate: Candidate):
-        # if self.deleted_footballers:
-        #     self._plain_distance_deleted_footballers_sort(candidate)
-        #     self._add_footballer_from_deleted_list(candidate)
-        #     return None
-
         footballer = Footballer(self.initial_indexes[0], candidate.center, candidate.box, candidate.color)
         self.footballers.append(footballer)
         del self.initial_indexes[0]
@@ -89,7 +76,6 @@ class FootballManager:
     def _remove_footballer(self, footballer: Footballer):
         footballer.team.remove_footballer(footballer)
         self.footballers.remove(footballer)
-        # self.deleted_footballers.append(footballer)
         self.initial_indexes.append(footballer.id)
         print(f"{Colors.WARNING}Footballer with ID {Colors.FAIL}{footballer.id}{Colors.WARNING} has been deleted{Colors.ENDC}")
 
