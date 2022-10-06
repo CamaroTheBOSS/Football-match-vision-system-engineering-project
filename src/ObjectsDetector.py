@@ -68,9 +68,9 @@ class ObjectsDetector:
 
         self.ball_objects = []
         for contour in contours:
-            if 30 < len(contour) < 100:
+            if 100 < cv2.contourArea(contour) < 350:
                 self.ball_objects.append(contour)
-
+        print(len(self.ball_objects))
         return self.ball_objects
 
     def look_for_objects(self):
