@@ -65,7 +65,6 @@ class FootballManager:
         print(f"{Colors.OKGREEN}New Team has been added with color: {Colors.OKBLUE}{color}{Colors.ENDC}")
         return team
 
-
     def _add_new_footballer(self, candidate: Candidate):
         footballer = Footballer(self.initial_indexes[0], candidate.center, candidate.box, candidate.color)
         self.footballers.append(footballer)

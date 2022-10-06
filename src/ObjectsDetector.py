@@ -22,20 +22,20 @@ class ObjectsDetector:
         self.candidates = []
 
     def get_object_color(self, ROI: list[int]):
-        x, y, w, h = ROI[0] + ROI[2] // 3, ROI[1] + ROI[3] // 10, ROI[2] // 3, 3 * ROI[3] // 10
-        x_vec = np.linspace(x, x + w - 1, 10, dtype=int)
-        y_vec = np.linspace(y, y + h - 1, 10, dtype=int)
+        x, y, w, h = ROI[0] + ROI[2] // 3, ROI[1] + ROI[3] // 5, ROI[2] // 3, 3 * ROI[3] // 10
+        x_vec = np.linspace(x, x + w - 1, 5, dtype=int)
+        y_vec = np.linspace(y, y + h - 1, 5, dtype=int)
         probes = [self.original_frame[y, x] for x in x_vec for y in y_vec]
-
         divider = 0
         object_color = (0, 0, 0)
         for color in probes:
-            if not np.logical_and(color[0] > color[1], color[1] > color[2]):
+            if not np.logical_and(color[1] > color[0], color[1] > color[2]):
                 object_color = tuple(map(sum, zip(object_color, color)))
                 divider += 1
         if not divider:
             divider = 1
         object_color = tuple(int(color) // divider for color in object_color)
+        # cv2.rectangle(self.original_frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
 
         return object_color
 
