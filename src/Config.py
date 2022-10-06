@@ -1,7 +1,7 @@
 class Config:
     VIDEO = "fifa.mkv"
 
-    CONFIG = {"fifa.mkv": {"CBT": [(30, 0, 40), (50, 255, 255)],  # Cutting background threshold (getting whole pitch)
+    CONFIG = {"fifa.mkv": {"CBT": [(30, 0, 40), (50, 120, 120)],  # Cutting background threshold (getting whole pitch)
                            "PLT": [(0, 110, 0), (255, 255, 255)],  # Extruding pitch lines threshold (getting pitch lines)
                            "FPS": 1},
               "lewy.mp4": {"CBT": [(30, 0, 30), (50, 255, 255)],

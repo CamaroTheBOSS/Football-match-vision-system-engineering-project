@@ -153,6 +153,12 @@ def main():
         candidates = objects_detector.prepare_candidates()
         football_manager.process_candidates(candidates)
 
+        # 4. Detect ball
+        balls = objects_detector.look_for_ball()
+        # candidates = objects_detector.prepare_ball_candidates()
+        # football_manager.process_ball_candidates(candidates)
+        cv2.drawContours(frame_distributor.frame, balls, -1, (0, 0, 0), 2)
+
         football_manager.update()
         drawer.frame = frame_distributor.frame
         football_manager.draw(drawer.frame)

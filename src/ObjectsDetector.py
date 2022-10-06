@@ -17,9 +17,14 @@ class ObjectsDetector:
     def __init__(self):
         self.original_frame = None
         self.workspace_frame = None
+        self.ball_frame = None
         self.mask = None
+
         self.objects = []
+        self.ball_objects = []
+
         self.candidates = []
+        self.ball_candidates = []
 
     def get_object_color(self, ROI: list[int]):
         x, y, w, h = ROI[0] + ROI[2] // 3, ROI[1] + ROI[3] // 5, ROI[2] // 3, 3 * ROI[3] // 10
@@ -38,6 +43,35 @@ class ObjectsDetector:
         # cv2.rectangle(self.original_frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
 
         return object_color
+
+    def get_ball_color(self, ROI: list[int]):
+        x, y, w, h = ROI[0] + ROI[2] // 5, ROI[1] + ROI[3] // 5, 3 * ROI[2] // 5, 2 * ROI[3] // 5
+        x_vec = np.linspace(x, x + w - 1, 10, dtype=int)
+        y_vec = np.linspace(y, y + h - 1, 10, dtype=int)
+        probes = [self.original_frame[y, x] for x in x_vec for y in y_vec]
+
+        divider = 0
+        object_color = (0, 0, 0)
+        for color in probes:
+            if not np.logical_and(color[0] > color[1], color[1] > color[2]):
+                object_color = tuple(map(sum, zip(object_color, color)))
+                divider += 1
+        if not divider:
+            divider = 1
+        object_color = tuple(int(color) // divider for color in object_color)
+
+        return object_color
+
+    def look_for_ball(self):
+        self.ball_frame = cv2.erode(self.ball_frame, (5, 5), iterations=5)
+        contours, hierarchy = cv2.findContours(self.ball_frame, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
+
+        self.ball_objects = []
+        for contour in contours:
+            if 30 < len(contour) < 100:
+                self.ball_objects.append(contour)
+
+        return self.ball_objects
 
     def look_for_objects(self):
         # 1. Cutting silhouettes

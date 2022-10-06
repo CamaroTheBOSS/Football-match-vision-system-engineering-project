@@ -15,6 +15,9 @@ class FrameDistributor:
 
         self.frame = None
         self.preprocessed_frame = None
+        self.ball_frame = None
+
+        self.thresh = Config.get_cutting_background_threshold()
 
     def cap_forward(self):
         self.cap.set(cv2.CAP_PROP_POS_FRAMES, self.cap.get(cv2.CAP_PROP_POS_FRAMES) + 180)
@@ -31,9 +34,9 @@ class FrameDistributor:
     def _cut_background(self):
         kernel = np.ones((3, 3))
         out = cv2.cvtColor(self.frame, cv2.COLOR_BGR2HLS)
-        thresh = Config.get_cutting_background_threshold()
-        out = cv2.inRange(out, thresh[0], thresh[1])
+        out = cv2.inRange(out, self.thresh[0], self.thresh[1])
         out = cv2.morphologyEx(out, cv2.MORPH_OPEN, kernel=kernel, iterations=5)
+        self.ball_frame = out.copy()
         self.preprocessed_frame = cv2.morphologyEx(out, cv2.MORPH_CLOSE, kernel=kernel, iterations=7)
 
     def _cut_objects(self):
@@ -72,6 +75,7 @@ class FrameDistributor:
 
         self.object_detector.original_frame = self.frame
         self.object_detector.workspace_frame = frame_with_footballers
+        self.object_detector.ball_frame = self.ball_frame
         self.object_detector.mask = self.preprocessed_frame
         self.camera_tracker.frame = frame_with_pitch
 
