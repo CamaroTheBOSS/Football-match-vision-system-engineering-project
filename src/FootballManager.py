@@ -1,24 +1,13 @@
 import numpy as np
 
 from Colors import Colors
-from Objects import Footballer, Team, Candidate
+from Objects import Footballer, Team, Candidate, Ball
 from Config import Config
-
-
-def color_distance(color_first: tuple, color_second: tuple):
-    dR = (color_first[0] - color_second[0])**2
-    dG = (color_first[1] - color_second[1])**2
-    dB = (color_first[2] - color_second[2])**2
-    r = 0.5*(color_first[0] + color_second[0])
-    return np.sqrt((2 + r/256)*dR + 4*dG + (2 + (255 - r)/256)*dB)
+from utils import color_distance, plain_distance
 
 
 def color_comparator(color: tuple, candidate: Candidate):
     return candidate.calculate_min_distance(lambda: color_distance(color, candidate.color))
-
-
-def plain_distance(center_first: tuple, center_second: tuple):
-    return abs(center_first[0] - center_second[0]) + abs(center_first[1] - center_second[1])
 
 
 def plain_distance_comparator(center_first: tuple, candidate: Candidate):
@@ -116,6 +105,13 @@ class FootballManager:
                 team = self._determine_team(candidate)
                 team.assign(footballer)
 
+    def process_ball_candidates(self, candidates: list[Candidate]):
+        if len(candidates):
+            if self.ball is None:
+                self.ball = Ball(0, candidates[0].center, candidates[0].box, candidates[0].color)
+            else:
+                self.ball.track(candidates[0].center, candidates[0].box)
+
     def update(self):
         for footballer in self.footballers:
             footballer.update()
@@ -126,3 +122,6 @@ class FootballManager:
     def draw(self, frame: np.ndarray):
         for footballer in self.footballers:
             footballer.draw(frame)
+
+        if self.ball is not None:
+            self.ball.draw(frame)

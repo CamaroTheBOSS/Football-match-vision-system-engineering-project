@@ -147,3 +147,7 @@ class Footballer(MovingObject):
 class Ball(MovingObject):
     def __init__(self, identifier: int, center: tuple, box: list[int], color: tuple):
         super().__init__(identifier, center, box, color)
+
+    def draw(self, frame: np.ndarray):
+        cv2.rectangle(frame, (self.box[0], self.box[1]),
+                      (self.box[0] + self.box[2], self.box[1] + self.box[3]), self.display_color, 3)
