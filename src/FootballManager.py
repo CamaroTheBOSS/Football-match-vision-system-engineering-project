@@ -1,6 +1,7 @@
 import numpy as np
 
 from Colors import Colors
+from FootballProjector import FootballProjector
 from Objects import Footballer, Team, Candidate, Ball
 from Config import Config
 from utils import color_distance, plain_distance
@@ -25,7 +26,7 @@ def _color_distance_teams_sort(teams_list: list[Team], candidate: Candidate):
 
 
 class FootballManager:
-    def __init__(self, max_teams: int = 2, max_footballers: int = 25):
+    def __init__(self, projector: FootballProjector, max_teams: int = 2, max_footballers: int = 25):
         self.MAX_TEAMS = max_teams
         self.MAX_FOOTBALLERS = max_footballers
 
@@ -37,6 +38,8 @@ class FootballManager:
         self.team_colors = Config.TEAM_COLORS.copy()
 
         self.ball = None
+
+        self.projector = projector
 
     def _assign_to_existing_team(self, footballer: Footballer, candidate: Candidate):
         _color_distance_teams_sort(self.teams, candidate)
@@ -112,6 +115,7 @@ class FootballManager:
             else:
                 self.ball.track(candidates[0].center, candidates[0].box)
 
+    # TODO Update and draw for merging for loops?
     def update(self):
         for footballer in self.footballers:
             footballer.update()
@@ -125,3 +129,7 @@ class FootballManager:
 
         if self.ball is not None:
             self.ball.draw(frame)
+
+    def send_objects_to_projector(self):
+        self.projector.footballers = self.footballers
+        self.projector.ball = self.ball

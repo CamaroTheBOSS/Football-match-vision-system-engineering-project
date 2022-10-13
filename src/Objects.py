@@ -50,6 +50,7 @@ class MovingObject(Object):
         self.plain_velocity = (0, 0)
         self.not_tracked_frames_in_row = 0
         self.tracked = False
+        self.projected_center = (0, 0)
 
     def __eq__(self, other):
         if not isinstance(other, MovingObject):
@@ -73,6 +74,9 @@ class MovingObject(Object):
         else:
             self.update_position()
             self.not_tracked_frames_in_row += 1
+
+    def project(self, frame: np.ndarray, radius: int):
+        cv2.circle(frame, self.projected_center, radius, self.display_color, cv2.FILLED)
 
 
 class Team:
@@ -143,6 +147,11 @@ class Footballer(MovingObject):
         cv2.putText(frame, str(self.id), (self.center[0] + self.box[2] // 2, self.center[1] + self.box[3] // 2),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, self.team.display_color, 2, cv2.LINE_AA)
 
+    def project(self, frame: np.ndarray, radius: int):
+        cv2.circle(frame, self.projected_center, radius, self.team.display_color, cv2.FILLED)
+        cv2.putText(frame, str(self.id), tuple(map(sub, self.projected_center, (5, -5))), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                    (0, 0, 0), 2, cv2.LINE_AA)
+
 
 class Ball(MovingObject):
     def __init__(self, identifier: int, center: tuple, box: list[int], color: tuple):
@@ -151,3 +160,8 @@ class Ball(MovingObject):
     def draw(self, frame: np.ndarray):
         cv2.rectangle(frame, (self.box[0], self.box[1]),
                       (self.box[0] + self.box[2], self.box[1] + self.box[3]), self.display_color, 3)
+
+    def project(self, frame: np.ndarray, radius: int):
+        cv2.circle(frame, self.projected_center, radius, self.display_color, cv2.FILLED)
+        cv2.putText(frame, "B", tuple(map(sub, self.projected_center, (3, -3))), cv2.FONT_HERSHEY_SIMPLEX, 0.25,
+                    (0, 0, 0), 1, cv2.LINE_AA)

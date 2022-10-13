@@ -1,5 +1,5 @@
 class Config:
-    VIDEO = "v.mp4"
+    VIDEO = "fifa.mkv"
 
     CONFIG = {"fifa.mkv": {"CBT": [(30, 0, 40), (50, 120, 120)],   # Cutting background threshold (getting whole pitch)
                            "PLT": [(0, 110, 0), (255, 255, 255)],  # Extruding pitch line threshold (getting pitch line)
@@ -15,6 +15,7 @@ class Config:
                         "BALL_COLOR": (190, 213, 219)}
               }
     TEAM_COLORS = [(255, 255, 255), (0, 0, 0), (255, 0, 0), (0, 255, 0), (0, 0, 255)]
+    PROJECT_BACKGROUND = "pitch.png"
 
     use_display_colors = False
 
@@ -33,6 +34,10 @@ class Config:
     @staticmethod
     def get_BALL_COLOR():
         return Config.CONFIG[Config.VIDEO]["BALL_COLOR"]
+
+    @staticmethod
+    def get_pitch_graphic():
+        return "../" + Config.PROJECT_BACKGROUND
 
     @staticmethod
     def get_video():

@@ -2,16 +2,19 @@ import cv2
 import numpy as np
 
 from CameraTracker import CameraTracker
+from FootballProjector import FootballProjector
 from ObjectsDetector import ObjectsDetector
 from Config import Config
 
 
 class FrameDistributor:
-    def __init__(self, path: str, objects_detector: ObjectsDetector, camera_tracker: CameraTracker):
+    def __init__(self, path: str, objects_detector: ObjectsDetector, camera_tracker: CameraTracker,
+                 projector: FootballProjector):
         self.object_detector = objects_detector
         self.camera_tracker = camera_tracker
 
         self.cap = cv2.VideoCapture(path)
+        projector.video_resolution = (self.cap.get(3), self.cap.get(4))
 
         self.frame = None
         self.preprocessed_frame = None

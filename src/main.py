@@ -3,7 +3,7 @@ import numpy as np
 import keyboard
 
 from CameraTracker import CameraTracker
-from Drawer import Drawer
+from FootballProjector import FootballProjector
 from FrameDistributor import FrameDistributor
 from ObjectsDetector import ObjectsDetector
 from Points import IntersectPoint
@@ -131,12 +131,13 @@ def displayPoints(points, dst):
 def main():
     WAIT_KEY_TIME = Config.get_FPS()
 
-    football_manager = FootballManager()
-    drawer = Drawer(football_manager.footballers)
+    projector = FootballProjector(Config.get_pitch_graphic())
+    football_manager = FootballManager(projector)
 
     objects_detector = ObjectsDetector()
     camera_tracker = CameraTracker()
-    frame_distributor = FrameDistributor("../video/" + Config.get_video(), objects_detector, camera_tracker)
+
+    frame_distributor = FrameDistributor("../video/" + Config.get_video(), objects_detector, camera_tracker, projector)
 
     while True:
         # 1. Getting frame
@@ -158,10 +159,19 @@ def main():
         candidates = objects_detector.prepare_ball_candidates()
         football_manager.process_ball_candidates(candidates)
 
+        # 5. Update objects
         football_manager.update()
-        drawer.frame = frame_distributor.frame
-        football_manager.draw(drawer.frame)
-        drawer.draw_frame("")
+
+        # 6. Draw objects on the frame
+        football_manager.draw(frame_distributor.frame)
+        cv2.imshow("win", frame_distributor.frame)
+
+        # 7. Project objects into 2D pitch
+        football_manager.send_objects_to_projector()
+        projector.project()
+        projector.show()
+
+
         # mask, silhouettes = cut_footballers_silhouette(frame_with_footballers, mask)
         # frame_with_footballers = cv2.bitwise_and(frame, frame, mask=mask)
         # # football_manager.fit_contours_to_objects(frame, silhouettes)

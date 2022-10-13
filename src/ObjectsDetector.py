@@ -150,4 +150,3 @@ class ObjectsDetector:
 
         self.ball_candidates.sort(key=lambda c: c.distance, reverse=True)
         return self.ball_candidates
-
