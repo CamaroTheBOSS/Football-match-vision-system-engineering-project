@@ -10,14 +10,17 @@ from Config import Config
 class FrameDistributor:
     def __init__(self, path: str, objects_detector: ObjectsDetector, camera_tracker: CameraTracker,
                  projector: FootballProjector):
+        self.cap = cv2.VideoCapture(path)
+        self.cap.set(cv2.CAP_PROP_POS_FRAMES, 500)
+
         self.object_detector = objects_detector
         self.camera_tracker = camera_tracker
-
-        self.cap = cv2.VideoCapture(path)
+        self.camera_tracker.set_video_resolution((self.cap.get(3), self.cap.get(4)))
         projector.video_resolution = (self.cap.get(3), self.cap.get(4))
 
         self.frame = None
         self.preprocessed_frame = None
+        self.pitch_frame = None
         self.ball_frame = None
 
         self.thresh = Config.get_cutting_background_threshold()
@@ -56,9 +59,10 @@ class FrameDistributor:
                 candidate_contours.append(contour)
             else:
                 break
-
+        self.pitch_frame = self.preprocessed_frame.copy()
         self.preprocessed_frame = np.full_like(thresh, 255)
         cv2.drawContours(self.preprocessed_frame, candidate_contours, -1, (0, 0, 0), cv2.FILLED)
+        cv2.drawContours(self.pitch_frame, candidate_contours, -1, (0, 0, 0), cv2.FILLED)
 
     def preprocess_frame(self):
         self._cut_background()
@@ -73,13 +77,13 @@ class FrameDistributor:
         return self.preprocessed_frame
 
     def send_to_detectors(self):
-        frame_with_pitch = cv2.bitwise_and(self.frame, self.frame, mask=self.preprocessed_frame)
+        frame_with_pitch = cv2.bitwise_and(self.frame, self.frame, mask=self.pitch_frame)
         frame_with_footballers = cv2.bitwise_and(self.frame, self.frame, mask=np.invert(self.preprocessed_frame))
 
         self.object_detector.original_frame = self.frame
         self.object_detector.workspace_frame = frame_with_footballers
         self.object_detector.ball_frame = self.ball_frame
         self.object_detector.mask = self.preprocessed_frame
-        self.camera_tracker.frame = frame_with_pitch
 
-
+        self.camera_tracker.original_frame = self.frame
+        self.camera_tracker.workspace_frame = frame_with_pitch

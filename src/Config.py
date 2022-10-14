@@ -1,8 +1,8 @@
 class Config:
     VIDEO = "fifa.mkv"
 
-    CONFIG = {"fifa.mkv": {"CBT": [(30, 0, 40), (50, 120, 120)],   # Cutting background threshold (getting whole pitch)
-                           "PLT": [(0, 110, 0), (255, 255, 255)],  # Extruding pitch line threshold (getting pitch line)
+    CONFIG = {"fifa.mkv": {"CBT": [(30, 0, 40), (50, 150, 150)],   # Cutting background threshold (getting whole pitch)
+                           "PLT": [(0, 110, 0), (50, 255, 40)],  # Extruding pitch line threshold (getting pitch line)
                            "FPS": 1,                               # Time [ms] we need to wait between frames
                            "BALL_COLOR": (190, 213, 219)},         # Color of the ball
               "lewy.mp4": {"CBT": [(30, 0, 30), (50, 255, 255)],

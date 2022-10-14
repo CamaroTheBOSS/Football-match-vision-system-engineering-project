@@ -1,3 +1,5 @@
+import time
+
 import cv2
 import numpy as np
 import keyboard
@@ -11,174 +13,84 @@ from FootballManager import FootballManager
 from Config import Config
 
 
+def timing(f):
+    def wrap(*args):
+        time1 = time.time()
+        ret = f(*args)
+        time2 = time.time()
+        print(f"Function took {round((time2 - time1)*1000)}ms")
+        return ret
+    return wrap
 
 
+class Main:
+    def __init__(self):
+        self.WAIT_KEY_TIME = Config.get_FPS()
 
-# NOTES FOR FOOTBALLERS DETECTION
-# mask[np.logical_and(mask[:, :, 1] > mask[:, :, 2], mask[:, :, 2] > mask[:, :, 0])] = [255, 255, 255]
-# mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
-# ret2, mask = cv2.threshold(mask, 254, 255, cv2.THRESH_BINARY)
-# mask = cv2.cvtColor(mask, cv2.COLOR_HSV2BGR)
-# mask = cv2.erode(mask, (3, 3), iterations=7)
-# https://medium.com/betonchart/effective-way-to-collect-soccer-data-70ef69182eba
+        self.projector = FootballProjector(Config.get_pitch_graphic())
+        self.football_manager = FootballManager(self.projector)
 
+        self.objects_detector = ObjectsDetector()
+        self.camera_tracker = CameraTracker()
 
-# def preprocessingIdea1_EXTRUDING_PITCH_LINES(videoFrame):
-#     out = cv2.cvtColor(videoFrame, cv2.COLOR_BGR2HLS)
-#     out = cv2.inRange(out, PARAMETERS[CONFIG]["PLT"][0], PARAMETERS[CONFIG]["PLT"][1])
-#     return out
+        self.frame_distributor = FrameDistributor("../video/" + Config.get_video(), self.objects_detector,
+                                                  self.camera_tracker, self.projector)
 
+    def main(self):
+        while True:
+            # 1. Getting frame
+            if not self.frame_distributor.read():
+                break
 
-def houghLinesP(src, dst):
-    linesP = cv2.HoughLinesP(src, 1, np.pi / 180, 50, None, 100, 50)
-    if linesP is not None:
-        for i in range(len(linesP)):
-            line = linesP[i][0]
-            cv2.line(dst, (line[0], line[1]), (line[2], line[3]), (255, 255, 255), 3, cv2.LINE_AA)
-    return dst
+            self.loop()
 
+            if cv2.waitKey(self.WAIT_KEY_TIME) & 0xFF == ord('q'):
+                break
+            if keyboard.is_pressed("d"):
+                self.frame_distributor.cap_forward()
+            if keyboard.is_pressed("a"):
+                self.frame_distributor.cap_rewind()
 
-def houghLines(src):
-    lines = cv2.HoughLines(src, 1, np.pi / 180, 100, None, 0, 0)
-    vertical = []
-    horizontal = []
-    if lines is not None:
-        # Separate horizontal and vertical lines from each other
-        for i in range(len(lines)):
-            r, theta = lines[i][0]
-            if theta > np.pi / 2:
-                horizontal.append([r, theta])
-            else:
-                vertical.append([r, theta])
-    return vertical, horizontal
+        self.frame_distributor.cap.release()
+        cv2.destroyAllWindows()
 
-
-def aggregateLines(lines):
-    # Aggregation algorithm for horizontal lines
-    aggregatedLines = []
-    while len(lines):
-        r, theta = lines[0]
-        toAggregate = [[r, theta]]
-
-        # Collecting similar lines
-        for rInterior, thetaInterior in lines:
-            if abs(r - rInterior) < 80 and abs(theta - thetaInterior) < 0.15:
-                toAggregate.append([rInterior, thetaInterior])
-
-        # Aggregating collected similar lines
-        if len(toAggregate) > 1:
-            rSum = 0
-            thetaSum = 0
-            for i in range(len(toAggregate)):
-                rSum += toAggregate[i][0]
-                thetaSum += toAggregate[i][1]
-            aggregatedLines.append([rSum // len(toAggregate), thetaSum / len(toAggregate)])
-
-        # Deleting used horizontal lines
-        lines = [item for item in lines if item not in toAggregate]
-
-    return aggregatedLines
-
-
-def displayLines(lines, dst):
-    # Display lines
-    for r, theta in lines:
-        a = np.cos(theta)
-        b = np.sin(theta)
-        x0 = a * r
-        y0 = b * r
-        pt1 = (int(x0 + 1000 * (-b)), int(y0 + 1000 * a))
-        pt2 = (int(x0 - 1000 * (-b)), int(y0 - 1000 * a))
-        cv2.line(dst, pt1, pt2, (255, 255, 255), 3, cv2.LINE_AA)
-
-
-def convertPOLAR2CARTESIAN(lines):
-    cartesian = []
-    for r, theta in lines:
-        a0 = np.cos(theta)
-        b0 = np.sin(theta)
-
-        # "Center" point of the line
-        x0 = a0 * r
-        y0 = b0 * r
-
-        # Points of the line
-        pt1 = (int(x0 - 1000 * b0), int(y0 + 1000 * a0))
-        pt2 = (int(x0 + 1000 * b0), int(y0 - 1000 * a0))
-
-        a = (pt2[1] - pt1[1]) / (pt2[0] - pt1[0]) if (pt2[0] - pt1[0]) != 0 else 10000
-        b = pt1[1] - a * pt1[0]
-        cartesian.append([a, b])
-    return cartesian
-
-
-def findIntersections(vertical, horizontal):
-    intersections = []
-    for av, bv in vertical:
-        for ah, bh in horizontal:
-            if av != ah:
-                x = (bh - bv) / (av - ah)
-                y = av * x + bv
-                intersections.append(IntersectPoint((int(x), int(y))))
-    return intersections
-
-
-def displayPoints(points, dst):
-    for point in points:
-        cv2.circle(dst, point.coord, 10, (255, 0, 0), -1)
-
-
-def main():
-    WAIT_KEY_TIME = Config.get_FPS()
-
-    projector = FootballProjector(Config.get_pitch_graphic())
-    football_manager = FootballManager(projector)
-
-    objects_detector = ObjectsDetector()
-    camera_tracker = CameraTracker()
-
-    frame_distributor = FrameDistributor("../video/" + Config.get_video(), objects_detector, camera_tracker, projector)
-
-    while True:
-        # 1. Getting frame
-        if not frame_distributor.read():
-            break
-
+    # @timing
+    def loop(self):
         # 2. Preprocess got frame and send it to detectors
-        frame_distributor.cut_background()
-        frame_distributor.cut_objects()
-        frame_distributor.send_to_detectors()
+        self.frame_distributor.cut_background()
+        self.frame_distributor.cut_objects()
+        self.frame_distributor.send_to_detectors()
 
         # 3. Detect footballers
-        objects_detector.look_for_objects()
-        candidates = objects_detector.prepare_candidates()
-        football_manager.process_candidates(candidates)
+        self.objects_detector.look_for_objects()
+        candidates = self.objects_detector.prepare_candidates()
+        self.football_manager.process_candidates(candidates)
 
         # 4. Detect ball
-        objects_detector.look_for_ball()
-        candidates = objects_detector.prepare_ball_candidates()
-        football_manager.process_ball_candidates(candidates)
+        self.objects_detector.look_for_ball()
+        candidates = self.objects_detector.prepare_ball_candidates()
+        self.football_manager.process_ball_candidates(candidates)
 
         # 5. Update objects
-        football_manager.update()
+        self.football_manager.update()
 
         # 6. Draw objects on the frame
-        football_manager.draw(frame_distributor.frame)
-        cv2.imshow("win", frame_distributor.frame)
+        self.football_manager.draw(self.frame_distributor.frame)
 
         # 7. Project objects into 2D pitch
-        football_manager.send_objects_to_projector()
-        projector.project()
-        projector.show()
+        self.football_manager.send_objects_to_projector()
+        self.projector.project()
+        self.projector.show()
+        # cv2.imshow("win", self.frame_distributor.frame)
 
+        # =============================================================================================================
+        # CAMERA MOTION ESTIMATION
+        # 1. Detect pitch lines
+        self.camera_tracker.extrude_pitch_lines()
+        self.camera_tracker.detect_pitch_lines()
 
-        # mask, silhouettes = cut_footballers_silhouette(frame_with_footballers, mask)
-        # frame_with_footballers = cv2.bitwise_and(frame, frame, mask=mask)
-        # # football_manager.fit_contours_to_objects(frame, silhouettes)
-        # # drawer.draw_footballers(frame)
-        # cv2.drawContours(frame, silhouettes, -1, (0, 0, 255), 3)
-
-        # cv2.drawContours(frame, silhouettes, -1, (0, 0, 255), 1)
+        # 2.
+        # cv2.imshow("win", camera_tracker.workspace_frame)
 
         # # 4. If we don't catch the lines we get lines by this step
         # output = preprocessingIdea1_EXTRUDING_PITCH_LINES(output)
@@ -205,15 +117,7 @@ def main():
         # cv2.imshow("frame with footballers", frame_with_footballers)
         # cv2.imshow("edges", canny)
         # cv2.imshow("final lines", empty2)
-        if cv2.waitKey(WAIT_KEY_TIME) & 0xFF == ord('q'):
-            break
-        if keyboard.is_pressed("d"):
-            frame_distributor.cap_forward()
-        if keyboard.is_pressed("a"):
-            frame_distributor.cap_rewind()
-
-    frame_distributor.cap.release()
-    cv2.destroyAllWindows()
 
 
-main()
+main = Main()
+main.main()
