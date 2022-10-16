@@ -87,7 +87,7 @@ class Main:
         # CAMERA MOTION ESTIMATION
         # 1. Detect pitch lines
         self.camera_tracker.extrude_pitch_lines()
-        self.camera_tracker.detect_pitch_lines()
+        self.camera_tracker.detect_keypoints()
 
         # 2.
         # cv2.imshow("win", camera_tracker.workspace_frame)
