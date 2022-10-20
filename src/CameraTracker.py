@@ -1,9 +1,11 @@
+from operator import sub
+
 import cv2
 import numpy as np
 
-from enum import Enum
 from Config import Config
-from utils import do_intersect
+from Line import Line
+from utils import do_intersect, plain_distance
 
 
 def _find_intersections(vertical, horizontal):
@@ -13,107 +15,29 @@ def _find_intersections(vertical, horizontal):
             if do_intersect(v_line.ep1, v_line.ep2, h_line.ep1, h_line.ep2):
                 x = (h_line.b - v_line.b) / (v_line.a - h_line.a)
                 y = v_line.a * x + v_line.b
-                intersections.append((int(x), int(y)))
+                intersections.append((x, y))
 
     return intersections
 
 
 class CameraTracker:
-    class Line:
-        video_resolution = (0, 0)
-
-        class Orientation(Enum):
-            undefined = 0
-            horizontal = 1
-            vertical = 2
-
-        def __init__(self, p1: tuple, p2: tuple):
-            # Segment form
-            self.p1 = tuple(map(int, p1))
-            self.p2 = tuple(map(int, p2))
-
-            # y = ax + b Analytic form
-            self.a = None
-            self.b = None
-
-            # Border form (points which are intersections of Analytic form and edges of the video window)
-            self.ep1 = None
-            self.ep2 = None
-
-            # r, theta form
-            self.r = None
-            self.theta = None
-
-            self.orientation = self.Orientation.undefined
-
-            self.get_analytic_form()
-            self.get_r_theta_form()
-            self.get_line_orientation()
-            self.get_elongate_form(30)
-
-        def get_analytic_form(self):
-            x1, y1 = self.p1
-            x2, y2 = self.p2
-            self.a = (y2 - y1) / (x2 - x1) if (x2 != x1) else 10000
-            self.b = y1 - self.a * x1
-            return self.a, self.b
-
-        def get_elongate_form(self, pixels: int):
-            if self.is_horizontal():
-                dP = pixels if self.p1[0] < self.p2[0] else -pixels
-                x1 = self.p1[0] - dP
-                x2 = self.p2[0] + dP
-                y1 = self.a * x1 + self.b
-                y2 = self.a * x2 + self.b
-            else:
-                dP = pixels if self.p1[1] < self.p2[1] else -pixels
-                y1 = self.p1[1] - dP
-                y2 = self.p2[1] + dP
-                x1 = (y1 - self.b) / self.a
-                x2 = (y2 - self.b) / self.a
-            self.ep1 = (int(x1), int(y1))
-            self.ep2 = (int(x2), int(y2))
-
-            return self.ep1, self.ep2
-
-        def get_r_theta_form(self):
-            if self.a == 0:
-                self.r = self.b
-                self.theta = 0
-            else:
-                x = self.b / (-1 / self.a - self.a)
-                y = self.a * x + self.b
-                self.r = np.sqrt(y**2 + x**2)  # Maybe its computationally better to use abs(y + x)
-                self.theta = np.arctan2(x, y)
-
-        def get_line_orientation(self):
-            if abs(self.theta) < 0.2:
-                self.orientation = self.Orientation.horizontal
-            elif 2.6 > abs(self.theta) > 0.7:
-                self.orientation = self.Orientation.vertical
-            else:
-                self.orientation = self.Orientation.undefined
-            return self.orientation
-
-        def is_horizontal(self):
-            return self.orientation == self.Orientation.horizontal
-
-        def is_vertical(self):
-            return self.orientation == self.Orientation.vertical
-
     def __init__(self):
         self.original_frame = None
         self.workspace_frame = None
 
         self.video_resolution = (0, 0)
-        self.Line.video_resolution = (0, 0)
+        Line.video_resolution = (0, 0)
         self.keypoints = []
+        self.prev_keypoints = []
 
         self.thresh = Config.get_pitch_lines_threshold()
 
+        self.motion = (0, 0)
+        self.position = (0, 0)
+
     def set_video_resolution(self, resolution: tuple):
         self.video_resolution = resolution
-        self.Line.video_resolution = resolution
+        Line.video_resolution = resolution
 
     def extrude_pitch_lines(self):
         self.workspace_frame = cv2.cvtColor(self.workspace_frame, cv2.COLOR_BGR2HLS)
@@ -121,9 +45,10 @@ class CameraTracker:
         return self.workspace_frame
 
     def detect_keypoints(self):
-        pitch_lines_roughly = np.zeros_like(self.workspace_frame)
         horizontal, vertical = self._get_lines(self.workspace_frame)
+        self.prev_keypoints = self.keypoints
         self.keypoints = _find_intersections(horizontal, vertical)
+        self.keypoints = self._aggregate_keypoints()
 
         for line in vertical:
             cv2.line(self.original_frame, line.ep1, line.ep2, (255, 0, 0), 1)
@@ -132,10 +57,61 @@ class CameraTracker:
             cv2.line(self.original_frame, line.ep1, line.ep2, (255, 0, 0), 1)
             cv2.line(self.original_frame, line.p1, line.p2, (0, 0, 255), 1)
         for point in self.keypoints:
-            cv2.circle(self.original_frame, point, 10, (0, 255, 255), cv2.FILLED)
+            cv2.circle(self.original_frame, tuple(map(int, point)), 10, (0, 255, 255), cv2.FILLED)
+        for point in self.prev_keypoints:
+            cv2.circle(self.original_frame, tuple(map(int, point)), 10, (0, 125, 255), cv2.FILLED)
 
-        cv2.imshow("wind2", pitch_lines_roughly)
         cv2.imshow("sdd", self.original_frame)
+
+    def estimate_motion(self):
+        self.motion = self._estimate_motion()
+
+    def update(self):
+        self.position = tuple(map(sum, zip(self.position, self.motion)))
+
+    def _estimate_motion(self):
+        if not len(self.prev_keypoints):
+            return 0, 0
+
+        motion_sum = (0, 0)
+        n_points = 0
+        for keypoint in self.keypoints:
+            closest_previous_keypoints = min(self.prev_keypoints, key=lambda k: plain_distance(keypoint, k))
+            d_coord = tuple(map(sub, closest_previous_keypoints, keypoint))
+            if abs(d_coord[0]) + abs(d_coord[1]) < 50:
+                n_points += 1
+                motion_sum = tuple(map(sum, zip(motion_sum, d_coord)))
+
+        if n_points:
+            return tuple([coord / n_points for coord in motion_sum])
+        else:
+            return 0, 0
+
+    def _aggregate_keypoints(self):
+        aggregated_key_points = []
+        while len(self.keypoints):
+            selected_key_point = self.keypoints[0]
+            keypoints_to_aggregate = [selected_key_point]
+
+            # Collecting similar lines
+            for point in self.keypoints:
+                if abs(point[0] - selected_key_point[0]) + abs(point[1] - selected_key_point[1]) < 100:
+                    keypoints_to_aggregate.append(point)
+
+            # Aggregating collected similar lines
+            n_points = len(keypoints_to_aggregate)
+            if n_points > 1:
+                point_sum = (0, 0)
+                for point in keypoints_to_aggregate:
+                    point_sum = tuple(map(sum, zip(point_sum, point)))
+
+                point = tuple([coord / n_points for coord in point_sum])
+                aggregated_key_points.append(point)
+
+            # Deleting lines used for aggregation from main list with lines
+            self.keypoints = [item for item in self.keypoints if item not in keypoints_to_aggregate]
+
+        return aggregated_key_points
 
     def _get_lines(self, src):
         lines_points_form = cv2.HoughLinesP(src, 1, np.pi / 180, 50, None, 100, 50)
@@ -144,7 +120,7 @@ class CameraTracker:
         if lines_points_form is not None:
             for i in range(len(lines_points_form)):
                 x1, y1, x2, y2 = lines_points_form[i][0]
-                line = self.Line((x1, y1), (x2, y2))
+                line = Line((x1, y1), (x2, y2))
                 if line.is_horizontal():
                     horizontal.append(line)
                 elif line.is_vertical():

@@ -88,36 +88,9 @@ class Main:
         # 1. Detect pitch lines
         self.camera_tracker.extrude_pitch_lines()
         self.camera_tracker.detect_keypoints()
-
-        # 2.
-        # cv2.imshow("win", camera_tracker.workspace_frame)
-
-        # # 4. If we don't catch the lines we get lines by this step
-        # output = preprocessingIdea1_EXTRUDING_PITCH_LINES(output)
-        #
-        # # 5. Detecting pitch lines
-        # empty = np.zeros_like(output)
-        # houghLinesP(output, empty)  # HoughLinesP is detecting lines roughly
-        # empty2 = np.zeros_like(output)
-        # canny = cv2.Canny(empty, 254, 255)
-        # verticalLines, horizontalLines = houghLines(canny)  # Usual HoughLines is detecting lines more precisely
-        # aggregatedVerticals = aggregateLines(verticalLines)
-        # aggregatedHorizontals = aggregateLines(horizontalLines)
-        # displayLines(aggregatedVerticals, empty2)
-        # displayLines(aggregatedHorizontals, empty2)
-        #
-        # # 6. Finding intersections
-        # cartesianVerticals = convertPOLAR2CARTESIAN(aggregatedVerticals)
-        # cartesianHorizontals = convertPOLAR2CARTESIAN(aggregatedHorizontals)
-        # intersectionPoints = findIntersections(cartesianVerticals, cartesianHorizontals)
-        # displayPoints(intersectionPoints, frame)
-
-        # X. Show windows
-        # cv2.imshow("frame with pitch", frame_with_pitch)
-        # cv2.imshow("frame with footballers", frame_with_footballers)
-        # cv2.imshow("edges", canny)
-        # cv2.imshow("final lines", empty2)
-
+        self.camera_tracker.estimate_motion()
+        self.camera_tracker.update()
+        print(self.camera_tracker.position)
 
 main = Main()
 main.main()
