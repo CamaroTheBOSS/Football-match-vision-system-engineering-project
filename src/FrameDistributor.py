@@ -16,7 +16,7 @@ class FrameDistributor:
         self.object_detector = objects_detector
         self.camera_tracker = camera_tracker
         self.camera_tracker.set_video_resolution((self.cap.get(3), self.cap.get(4)))
-        projector.video_resolution = (self.cap.get(3), self.cap.get(4))
+        projector.set_resolution((self.cap.get(3), self.cap.get(4)))
 
         self.frame = None
         self.preprocessed_frame = None

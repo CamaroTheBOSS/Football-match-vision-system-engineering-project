@@ -90,3 +90,25 @@ class Line:
 
     def is_vertical(self):
         return self.orientation == self.Orientation.vertical
+
+
+class LinearFunction:
+    def __init__(self, p1: tuple, p2: tuple):
+        # Segment form
+        self.p1 = p1
+        self.p2 = p2
+
+        # y = ax + b Analytic form
+        x1, y1 = self.p1
+        x2, y2 = self.p2
+        self.a = (y2 - y1) / (x2 - x1) if (x2 != x1) else 10000
+        self.b = y1 - self.a * x1
+
+    def calculate_y(self, x):
+        return self.a * x + self.b
+
+    def calculate_y_reverse(self, x):
+        return -self.a * x + self.b
+
+    def calculate_x(self, y):
+        return (y - self.b) / self.a

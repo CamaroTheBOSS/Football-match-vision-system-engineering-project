@@ -1,14 +1,12 @@
 import time
 
 import cv2
-import numpy as np
 import keyboard
 
 from CameraTracker import CameraTracker
 from FootballProjector import FootballProjector
 from FrameDistributor import FrameDistributor
 from ObjectsDetector import ObjectsDetector
-from Points import IntersectPoint
 from FootballManager import FootballManager
 from Config import Config
 
@@ -90,7 +88,8 @@ class Main:
         self.camera_tracker.detect_keypoints()
         self.camera_tracker.estimate_motion()
         self.camera_tracker.update()
-        print(self.camera_tracker.position)
+        # print(self.camera_tracker.position)
+
 
 main = Main()
 main.main()
