@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 
 from Config import Config
+from FootballProjector import FootballProjector
 from Line import Line
 from utils import do_intersect, plain_distance
 
@@ -21,7 +22,7 @@ def _find_intersections(vertical, horizontal):
 
 
 class CameraTracker:
-    def __init__(self):
+    def __init__(self, projector: FootballProjector):
         self.original_frame = None
         self.workspace_frame = None
 
@@ -34,6 +35,8 @@ class CameraTracker:
 
         self.motion = (0, 0)
         self.position = (0, 0)
+
+        self.projector = projector
 
     def set_video_resolution(self, resolution: tuple):
         self.video_resolution = resolution
@@ -65,9 +68,11 @@ class CameraTracker:
 
     def estimate_motion(self):
         self.motion = self._estimate_motion()
+        return self.motion
 
     def update(self):
         self.position = tuple(map(sum, zip(self.position, self.motion)))
+        return self.position
 
     def _estimate_motion(self):
         if not len(self.prev_keypoints):
@@ -127,3 +132,6 @@ class CameraTracker:
                     vertical.append(line)
 
         return horizontal, vertical
+
+    def send_keypoints_to_projector(self):
+        self.projector.detected_keypoints = self.keypoints

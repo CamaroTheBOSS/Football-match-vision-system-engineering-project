@@ -1,5 +1,5 @@
 class Config:
-    VIDEO = "fifa.mkv"
+    VIDEO = "v.mp4"
 
     CONFIG = {"fifa.mkv": {"CBT": [(30, 0, 40), (50, 150, 150)],   # Cutting background threshold (getting whole pitch)
                            "PLT": [(0, 110, 0), (50, 255, 40)],  # Extruding pitch line threshold (getting pitch line)
@@ -16,6 +16,7 @@ class Config:
               }
     TEAM_COLORS = [(255, 255, 255), (0, 0, 0), (255, 0, 0), (0, 255, 0), (0, 0, 255)]
     PROJECT_BACKGROUND = "pitch.png"
+    output_file = None
 
     use_display_colors = False
 

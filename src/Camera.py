@@ -3,7 +3,7 @@ import copy
 import cv2
 import numpy as np
 
-from Line import Line, LinearFunction
+from Line import LinearFunction
 
 
 class Camera:
@@ -14,21 +14,18 @@ class Camera:
         self.y2 = y2
 
         self.video_resolution = (0, 0)
+        self.projection_resolution = (0, 0)
+        self.offset = (0, 0)
 
         dX = int(y1 * np.tan(theta / 2))
         self.left_down_corner = tuple(map(sum, zip(coord, (-dX, -y1))))
         self.right_down_corner = tuple(map(sum, zip(coord, (dX, -y1))))
 
-        left_tmp_line = Line(coord, self.left_down_corner)
-        right_tmp_line = Line(coord, self.right_down_corner)
+        self.left = LinearFunction(coord, self.left_down_corner)
+        self.right = LinearFunction(coord, self.right_down_corner)
 
-        self.left_up_corner = (int(left_tmp_line.calculate_x(coord[1] - y2)), coord[1] - y2)
-        self.right_up_corner = (int(right_tmp_line.calculate_x(coord[1] - y2)), coord[1] - y2)
-
-        self.bottom = Line(self.left_down_corner, self.right_down_corner)
-        self.right = Line(self.right_down_corner, self.right_up_corner)
-        self.top = Line(self.left_up_corner, self.right_up_corner)
-        self.left = Line(self.left_up_corner, self.left_down_corner)
+        self.left_up_corner = (int(self.left.calculate_x(coord[1] - y2)), coord[1] - y2)
+        self.right_up_corner = (int(self.right.calculate_x(coord[1] - y2)), coord[1] - y2)
 
         self.projection_matrix = np.zeros((3, 3))
 
@@ -64,10 +61,20 @@ class Camera:
         coordinates = np.array((*coord, 1))
         projected_coord = np.dot(self.projection_matrix, coordinates)
         projected_coord /= projected_coord[2]
-        return projected_coord
+        return tuple(map(sum, zip(projected_coord, (*self.offset, 0))))
 
     def draw(self, frame: np.ndarray):
-        cv2.line(frame, self.left_down_corner, self.right_down_corner, (0, 0, 255), 3)
-        cv2.line(frame, self.left_down_corner, self.left_up_corner, (0, 0, 255), 3)
-        cv2.line(frame, self.right_down_corner, self.right_up_corner, (0, 0, 255), 3)
-        cv2.line(frame, self.left_up_corner, self.right_up_corner, (0, 0, 255), 3)
+        ld = tuple(map(sum, zip(self.left_down_corner, (*self.offset, 0))))
+        rd = tuple(map(sum, zip(self.right_down_corner, (*self.offset, 0))))
+        lt = tuple(map(sum, zip(self.left_up_corner, (*self.offset, 0))))
+        rt = tuple(map(sum, zip(self.right_up_corner, (*self.offset, 0))))
+        cv2.line(frame, ld, rd, (0, 0, 255), 3)
+        cv2.line(frame, ld, lt, (0, 0, 255), 3)
+        cv2.line(frame, rd, rt, (0, 0, 255), 3)
+        cv2.line(frame, lt, rt, (0, 0, 255), 3)
+
+    def move(self, position):
+        x = position[0] * self.projection_resolution[0] / 3000
+        y = 100 + position[1] * self.projection_resolution[1] / 2500
+        self.offset = (int(x), int(y))
+
